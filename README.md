@@ -1,9 +1,15 @@
 # Facial Similarity Search
 
-Given a photograph of a face, this project returns the gallery identities (cricketers,
-footballers, and actors) whose faces are most similar. It is a nearest-neighbour retrieval system over
-face embeddings, not a trained classifier: no gradient-based training is performed at any
-stage, so adding or removing an identity requires only regenerating the gallery.
+Point it at any photo (selfie, crowd shot, full-body frame) and it tells you which of
+235 cricketers, footballers, and actors you look like, and how strongly. Under the hood it
+is a metric-learning retrieval engine, not a classifier: YuNet (`FaceDetectorYN`)
+detects and 5-point-aligns the face, SFace (`FaceRecognizerSF`) projects the aligned crop
+into a 128-D L2-normalised embedding, and a query is ranked against per-identity centroids
+by cosine similarity in a single matrix multiply. Zero gradient descent, zero fine-tuning:
+identities are the *data*, not the weights, so extending the gallery is a re-index, not a
+retrain. Leave-one-out cross-validation lands **top-1 0.941 / top-5 0.960** across ~4,110
+images (vs. a 0.004 random baseline), and the whole thing ships as a self-contained
+Streamlit app with sub-second CPU-only inference and no photo ever touching disk.
 
 ## Method
 
@@ -11,13 +17,13 @@ stage, so adding or removing an identity requires only regenerating the gallery.
 
 The pipeline has three stages, all provided by OpenCV's `objdetect` module:
 
-1. **Detection and alignment** — `FaceDetectorYN` (YuNet) locates the most prominent face
+1. **Detection and alignment**: `FaceDetectorYN` (YuNet) locates the most prominent face
    in an image and returns its bounding box and five landmarks. The face is then aligned to
    a canonical 112x112 crop using those landmarks. Because detection runs on the full image,
    the face is recovered even from full-body photographs.
-2. **Embedding** — `FaceRecognizerSF` (SFace) maps the aligned crop to a 128-dimensional
+2. **Embedding**: `FaceRecognizerSF` (SFace) maps the aligned crop to a 128-dimensional
    embedding, which is L2-normalised so that inner products are cosine similarities.
-3. **Matching** — each identity is represented by the mean of its gallery embeddings
+3. **Matching**: each identity is represented by the mean of its gallery embeddings
    (re-normalised to unit length). A query embedding `q` is scored against every identity
    centroid `c_i` by cosine similarity `s_i = c_i · q`, and the identities are ranked by `s`.
 
@@ -28,9 +34,9 @@ of the image.
 ## Requirements
 
 - Python 3.12
-- `requirements.txt` — the app's runtime deps (`streamlit`, `opencv-python-headless`,
+- `requirements.txt`: the app's runtime deps (`streamlit`, `opencv-python-headless`,
   `numpy`, `pillow`); this is what Streamlit Cloud installs.
-- `scripts/requirements.txt` — extra deps for the offline pipeline (`matplotlib`,
+- `scripts/requirements.txt`: extra deps for the offline pipeline (`matplotlib`,
   the scraper's `selenium`/`requests`, etc.).
 
 ```
@@ -107,27 +113,27 @@ image is never scored against a copy of itself.
 Current gallery: 235 identities (cricketers, footballers, actors), ~4,110 images
 (capped at 20 per identity).
 
-| Metric | Value |
-|--------|-------|
-| Leave-one-out top-1 | 0.941 |
-| Leave-one-out top-5 | 0.960 |
+| Metric                  | Value |
+| ----------------------- | ----- |
+| Leave-one-out top-1     | 0.941 |
+| Leave-one-out top-5     | 0.960 |
 | Random baseline (top-1) | 0.004 |
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `app.py` | Streamlit look-alike app (upload / camera). Entry point for deployment. |
-| `recognizer.py` | Self-contained inference (detection + embedding + matching) used by the app; reads only `assets/`. |
-| `assets/` | Deployable bundle: `face_recognizer.pkl` and one thumbnail per identity (ONNX models fetched at runtime). |
-| `scripts/faceutil.py` | Detection, alignment, and embedding. Imported by both gallery construction and inference so the two never diverge. |
-| `scripts/prepare_dataset.py` | Consolidates any existing layout into the flat gallery, de-duplicates by content hash, and rewrites `celebrities.csv`. |
-| `scripts/balance_gallery.py` | Normalises folder names to snake_case and caps oversized folders to N face-verified images. |
-| `scripts/face_recognition_pipeline.py` | Builds the identity centroids, writes `face_recognizer.pkl`, and prints leave-one-out accuracy. |
-| `scripts/build_assets.py` | Copies models + centroids and renders thumbnails into `assets/` for the app. |
-| `scripts/extract_faces.py` | Writes aligned face crops to `celebrity_faces/` for visual inspection. |
-| `scripts/prediction.ipynb` | Interactive querying from an image file or webcam (run with the project root as the working directory). |
-| `scripts/data_scraping.py` | Standalone Google Images scraper for collecting additional reference photos. |
+| File                                   | Purpose                                                                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `app.py`                               | Streamlit look-alike app (upload / camera). Entry point for deployment.                                                |
+| `recognizer.py`                        | Self-contained inference (detection + embedding + matching) used by the app; reads only `assets/`.                     |
+| `assets/`                              | Deployable bundle: `face_recognizer.pkl` and one thumbnail per identity (ONNX models fetched at runtime).              |
+| `scripts/faceutil.py`                  | Detection, alignment, and embedding. Imported by both gallery construction and inference so the two never diverge.     |
+| `scripts/prepare_dataset.py`           | Consolidates any existing layout into the flat gallery, de-duplicates by content hash, and rewrites `celebrities.csv`. |
+| `scripts/balance_gallery.py`           | Normalises folder names to snake_case and caps oversized folders to N face-verified images.                            |
+| `scripts/face_recognition_pipeline.py` | Builds the identity centroids, writes `face_recognizer.pkl`, and prints leave-one-out accuracy.                        |
+| `scripts/build_assets.py`              | Copies models + centroids and renders thumbnails into `assets/` for the app.                                           |
+| `scripts/extract_faces.py`             | Writes aligned face crops to `celebrity_faces/` for visual inspection.                                                 |
+| `scripts/prediction.ipynb`             | Interactive querying from an image file or webcam (run with the project root as the working directory).                |
+| `scripts/data_scraping.py`             | Standalone Google Images scraper for collecting additional reference photos.                                           |
 
 ## Limitations
 
