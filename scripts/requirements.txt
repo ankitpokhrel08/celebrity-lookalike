@@ -1,0 +1,13 @@
+# Face look-alike app (detection + embedding via OpenCV; no deep-learning training)
+opencv-python
+numpy
+matplotlib
+
+# Old Google-Images scraper (data_scraping.py)
+requests
+selenium
+beautifulsoup4
+webdriver-manager
+
+# Optional: downloading datasets from Kaggle
+# kaggle
