@@ -100,9 +100,9 @@ the two ONNX face models are downloaded on first run, so they are not committed.
 ### Deploy on Streamlit Community Cloud
 
 Push the repo to GitHub and create a new app pointing at `app.py` on the default branch.
-Streamlit Cloud installs `requirements.txt` and the apt package in `packages.txt`
-(`libglib2.0-0`, needed by headless OpenCV) automatically. Uploaded photos are processed
-in memory and never written to disk.
+Streamlit Cloud installs `requirements.txt` automatically; no `packages.txt` is needed
+because `opencv-python-headless` ships without the system GUI/GLib libraries. Uploaded
+photos are processed in memory and never written to disk.
 
 ## Evaluation
 
